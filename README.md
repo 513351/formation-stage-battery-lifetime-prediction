@@ -349,7 +349,3 @@ Citation information for our study will be updated upon publication.
 The source code in this repository is provided for academic and research use.
 
 The original battery dataset remains subject to the license and terms specified by its original data provider.
-
-The code in this repository is provided for academic and research use.
-
-The original battery dataset is subject to the license and terms specified by its original data provider.
