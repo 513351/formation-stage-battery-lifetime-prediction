@@ -1,6 +1,6 @@
 outputs/
+data/
 *.pth
 __pycache__/
 *.pyc
 .DS_Store
-data/Batch3_145_ID_Knee_EOL80.csv
