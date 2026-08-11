@@ -2,17 +2,21 @@
 
 Code for ultra-early prediction of lithium-ion battery lifetime and degradation knee point using formation-stage data.
 
-This repository contains the implementation of the data-processing, semantic-encoding, model-training, and evaluation pipeline used in our study.
+This repository contains the implementation of the semantic encoding, dataset splitting, normalization, model training, and model evaluation pipeline used in this study.
+
+---
 
 ## Workflow
 
-The complete workflow is divided into five scripts and should be executed in the following order:
+The computational workflow is divided into five scripts and should be executed in the following order.
 
 ### 1. Semantic encoding
 
 `01_semantic_encoding.py`
 
 Extracts a 244-dimensional physics-informed semantic feature vector from the five formation stages of each battery cell.
+
+Each cell is represented by formation-stage boundary features, differential features, sampled capacity/voltage features, and stage separators.
 
 ### 2. Random batch split
 
@@ -23,7 +27,9 @@ Randomly splits the 145 cells used in this study into:
 - 117 training cells
 - 28 test cells
 
-The train/test split is controlled by `SPLIT_SEED`. Changing the random seed generates a different batch split.
+The train/test split is controlled by `SPLIT_SEED`.
+
+Changing `SPLIT_SEED` generates a different random batch split.
 
 ### 3. Training-set normalization
 
@@ -31,32 +37,32 @@ The train/test split is controlled by `SPLIT_SEED`. Changing the random seed gen
 
 Fits the normalization parameters using the training set only and applies the same parameters to both the training and test sets.
 
-For the target variables, the minimum and maximum values of the training set are used for Min-Max normalization.
+For the prediction targets, the minimum and maximum values of the training set are used for Min-Max normalization.
 
-The test set is not used to fit any normalization parameter.
+The test set is not used to fit any normalization parameter and test values are not clipped.
 
 ### 4. Model training
 
 `04_train_model.py`
 
-Trains the multi-scale convolutional neural network with temporal attention for joint prediction of:
+Trains a multi-scale one-dimensional convolutional neural network with temporal attention for joint prediction of:
 
 - degradation knee point
 - end-of-life (EOL)
 
-The trained model parameters are saved locally after training.
+The trained model parameters are generated and saved locally during execution.
 
-Numerical trained model weights are not included in this public repository.
+Numerical trained model weights are not distributed in this public repository.
 
 ### 5. Model testing
 
 `05_test_and_inverse_normalize.py`
 
-Evaluates the trained model using the 28 test cells in the corresponding batch.
+Evaluates the trained model using the test cells in the corresponding batch.
 
 Monte Carlo Dropout is used for predictive uncertainty estimation.
 
-The predicted normalized outputs are converted back to cycle numbers using the target Min-Max parameters obtained exclusively from the training set.
+The normalized predictions are converted back to cycle numbers using the target Min-Max parameters obtained exclusively from the training set.
 
 No 3-sigma outlier filtering is applied during evaluation.
 
@@ -69,26 +75,44 @@ The battery data used in this study are derived from the publicly available data
 > Xiao Cui, Stephen Dongmin Kang, Sunny Wang, Justin A. Rose, Huada Lian, Alexis Geslin, Steven B. Torrisi, Martin Z. Bazant, Shijing Sun, and William C. Chueh.  
 > **Data-driven analysis of battery formation reveals the role of electrode utilization in extending cycle life.**  
 > *Joule*, 8(11), 3072–3087, 2024.  
-> DOI: https://doi.org/10.1016/j.joule.2024.07.024
+> https://doi.org/10.1016/j.joule.2024.07.024
 
-The original dataset can be obtained from:
+The original dataset is available from:
 
 https://data.matr.io/8/
 
-The original battery dataset is not redistributed in this repository. Users should download the data directly from the original data source.
+The original battery data are not redistributed in this repository. Users should obtain the source data directly from the original publication and its associated data repository.
 
-The target variables used in this study are:
+---
+
+## Target labels
+
+The prediction targets used in this study are:
 
 - `Knee_Cycle`: degradation knee cycle
 - `EOL_Cycle`: end-of-life cycle defined at 80% state of health (SOH)
 
-The present study uses 145 cells from the source dataset for model development and evaluation.
+The processed target-label file used in the experiments is not redistributed in this repository.
+
+For local execution, the label table should contain the following columns:
+
+```text
+Cell_ID,Knee_Cycle,EOL_Cycle
+```
+
+and should be placed locally at:
+
+```text
+data/Batch3_145_ID_Knee_EOL80.csv
+```
+
+The processed label file is excluded from the public repository.
 
 ---
 
 ## Data preparation
 
-After downloading the original dataset, prepare the formation-stage data in the following structure:
+After obtaining the original battery dataset, the formation-stage data should be prepared locally with the following structure:
 
 ```text
 data/
@@ -102,22 +126,13 @@ data/
     └── ...
 ```
 
-The label table used by the pipeline should have the following format:
+The semantic encoding script reads the five pre-segmented formation stages for each cell and generates the model input features.
 
-```text
-Cell_ID,Knee_Cycle,EOL_Cycle
-...
-```
-
-and should be saved as:
-
-```text
-data/Batch3_145_ID_Knee_EOL80.csv
-```
+The local `data/` directory is not required to be committed to the public repository.
 
 ---
 
-## Project structure
+## Repository structure
 
 ```text
 formation-stage-battery-lifetime-prediction/
@@ -127,18 +142,12 @@ formation-stage-battery-lifetime-prediction/
 ├── 03_train_only_normalization.py
 ├── 04_train_model.py
 ├── 05_test_and_inverse_normalize.py
-│
-├── data/
-│   ├── Batch3_145_ID_Knee_EOL80.csv
-│   └── formation_segments/
-│
-├── outputs/
-│
+├── requirements.txt
 ├── README.md
 └── .gitignore
 ```
 
-Generated files are written to the `outputs/` directory.
+Intermediate outputs generated during execution are written to the local `outputs/` directory and are not included in the repository.
 
 ---
 
@@ -178,7 +187,9 @@ The model is trained using the sum of the mean squared errors of the two predict
 
 ## Requirements
 
-The main Python dependencies are:
+The main Python dependencies are listed in `requirements.txt`.
+
+They include:
 
 ```text
 numpy
@@ -187,9 +198,13 @@ scipy
 torch
 ```
 
-Install the required packages before running the pipeline.
+Install the dependencies using:
 
-For reproducibility, using consistent Python and package versions across experiments is recommended.
+```bash
+pip install -r requirements.txt
+```
+
+Using consistent Python and package versions is recommended when reproducing the computational workflow.
 
 ---
 
@@ -207,30 +222,33 @@ python 05_test_and_inverse_normalize.py
 
 The output of each step is used as the input to the subsequent step.
 
----
+The overall workflow is:
 
-## Reproducibility
-
-The train/test split is controlled by a random seed.
-
-With the same:
-
-- source data
-- preprocessing procedure
-- random seed
-- software environment
-- model configuration
-- training settings
-
-the experimental pipeline can be reproduced from the beginning.
-
-The trained model weights are intentionally not distributed. Running `04_train_model.py` generates the model parameters locally.
+```text
+Formation-stage data
+        ↓
+Semantic encoding
+        ↓
+145-cell dataset
+        ↓
+Random 117/28 train-test split
+        ↓
+Training-set-only normalization
+        ↓
+Model training
+        ↓
+Test-set prediction
+        ↓
+Inverse normalization
+        ↓
+Performance evaluation
+```
 
 ---
 
 ## Output
 
-The pipeline generates intermediate and final outputs including:
+The pipeline generates local intermediate and final outputs in:
 
 ```text
 outputs/
@@ -243,11 +261,45 @@ outputs/
 
 The final evaluation includes:
 
-- MAE
-- RMSE
-- MAPE
-- predictive uncertainty estimated using MC Dropout
+- mean absolute error (MAE)
+- root mean square error (RMSE)
+- mean absolute percentage error (MAPE)
+- predictive uncertainty estimated using Monte Carlo Dropout
 - 95% confidence interval half-width
+
+---
+
+## Model weights
+
+The trained numerical model parameters are generated locally by:
+
+```text
+04_train_model.py
+```
+
+and saved as a PyTorch model state file.
+
+The trained model weights are not included in this public repository.
+
+The `.gitignore` file excludes model-weight files from version control.
+
+---
+
+## Reproducibility
+
+This repository provides the source code for the computational workflow, including:
+
+- semantic feature extraction
+- random train/test splitting
+- normalization
+- model architecture
+- model training
+- uncertainty estimation
+- model evaluation
+
+The processed target-label file and trained numerical model weights used in the study are not redistributed.
+
+Reproduction of the exact numerical results reported in the study therefore requires access to the corresponding processed target labels in addition to the publicly available source battery data.
 
 ---
 
@@ -257,15 +309,19 @@ The original battery dataset is publicly available from the data repository asso
 
 https://data.matr.io/8/
 
-Users should refer to the original dataset and publication for the applicable data license and terms of use.
+The original dataset is not redistributed here.
+
+The processed target-label file used in this study is not included in this repository.
+
+Users should refer to the original dataset provider for the applicable data license and terms of use.
 
 ---
 
 ## Code availability
 
-The source code required to reproduce the computational workflow is provided in this repository.
+The source code for the computational workflow is provided in this repository.
 
-Trained numerical model weights are not included. They can be regenerated by executing the training pipeline.
+The processed target-label file and trained model weights are not redistributed.
 
 ---
 
@@ -289,6 +345,10 @@ Citation information for our study will be updated upon publication.
 ---
 
 ## License
+
+The source code in this repository is provided for academic and research use.
+
+The original battery dataset remains subject to the license and terms specified by its original data provider.
 
 The code in this repository is provided for academic and research use.
 
